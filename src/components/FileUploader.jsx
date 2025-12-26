@@ -13,7 +13,7 @@ export function FileUploader({ onUploadComplete }) {
         setIsUploading(true);
         try {
             for (const file of files) {
-                if (file.type.startsWith('audio/') || file.type.startsWith('video/')) {
+                if (file.type.startsWith('audio/') || file.type.startsWith('video/') || file.name.toLowerCase().endsWith('.m4a')) {
                     await StorageService.saveFile(file);
                 }
             }
@@ -32,7 +32,7 @@ export function FileUploader({ onUploadComplete }) {
             <input
                 type="file"
                 multiple
-                accept="audio/*,video/*"
+                accept="audio/*,video/*,.m4a"
                 className="hidden"
                 ref={fileInputRef}
                 onChange={handleFileChange}
