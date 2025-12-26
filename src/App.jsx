@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Play } from 'lucide-react';
+import { Play, Download, Upload } from 'lucide-react';
 import { FileUploader } from './components/FileUploader';
 import { Playlist } from './components/Playlist';
 import { Player } from './components/Player';
@@ -38,8 +38,18 @@ function App() {
   };
 
   useEffect(() => {
-    StorageService.requestPersistence();
-    loadTracks();
+    const init = async () => {
+      await StorageService.requestPersistence();
+
+      // Check for files shared via Share Target API
+      const hasNewFiles = await StorageService.processIncomingSharedFiles();
+      if (hasNewFiles) {
+        console.log("Processed new shared files");
+      }
+
+      loadTracks();
+    };
+    init();
   }, []);
 
   const handleDelete = async (id) => {
@@ -119,11 +129,29 @@ function App() {
         accept="audio/*,video/*"
       />
       <div className="p-6 max-w-xl mx-auto w-full">
-        <header className="mb-8">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-600 bg-clip-text text-transparent">
-            Sudu Player
-          </h1>
-          <p className="text-neutral-400 text-sm mt-1">Background-capable media queue</p>
+        <header className="mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-600 bg-clip-text text-transparent">
+              Sudu Player
+            </h1>
+            <p className="text-neutral-400 text-sm mt-1">Background-capable media queue</p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleExport}
+              className="p-2 text-neutral-400 hover:text-purple-400 transition-colors bg-neutral-800/50 rounded-lg hover:bg-neutral-800"
+              title="Export Backup"
+            >
+              <Download className="w-5 h-5" />
+            </button>
+            <label
+              className="p-2 text-neutral-400 hover:text-purple-400 transition-colors bg-neutral-800/50 rounded-lg hover:bg-neutral-800 cursor-pointer"
+              title="Import Backup"
+            >
+              <Upload className="w-5 h-5" />
+              <input type="file" onChange={handleImport} accept=".json" className="hidden" />
+            </label>
+          </div>
         </header>
 
         <FileUploader onUploadComplete={loadTracks} />
@@ -144,16 +172,7 @@ function App() {
             onRelink={onRelink}
           />
 
-          <div className="pt-8 border-t border-neutral-800 flex justify-center gap-4 text-xs text-neutral-500">
-            <button onClick={handleExport} className="hover:text-purple-400 transition-colors">
-              Export Backup (JSON)
-            </button>
-            <span>•</span>
-            <label className="hover:text-purple-400 transition-colors cursor-pointer">
-              Import Backup
-              <input type="file" onChange={handleImport} accept=".json" className="hidden" />
-            </label>
-          </div>
+
         </div>
       </div>
 

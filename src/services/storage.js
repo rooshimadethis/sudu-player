@@ -170,5 +170,50 @@ export const StorageService = {
             return isPersisted;
         }
         return false;
+    },
+
+    async processIncomingSharedFiles() {
+        const SHARE_DB_NAME = 'sudu-share-handoff';
+        const SHARE_STORE_NAME = 'shared-files';
+
+        // Check if DB exists (naive check: just try to open it)
+        try {
+            const db = await openDB(SHARE_DB_NAME, 1);
+            if (!db.objectStoreNames.contains(SHARE_STORE_NAME)) {
+                db.close();
+                return false;
+            }
+
+            const files = await db.getAll(SHARE_STORE_NAME);
+            if (files.length === 0) {
+                db.close();
+                return false;
+            }
+
+            console.log(`Found ${files.length} shared files to process`);
+
+            // Save all files to main DB
+            let processed = false;
+            for (const file of files) {
+                if (file instanceof File || file instanceof Blob) {
+                    // Ensure it has a name if it's a blob
+                    const fileToSave = file.name ? file : new File([file], `shared_file_${Date.now()}`, { type: file.type || 'application/octet-stream' });
+                    await this.saveFile(fileToSave);
+                    processed = true;
+                }
+            }
+
+            // Clear the handoff DB
+            const tx = db.transaction(SHARE_STORE_NAME, 'readwrite');
+            await tx.objectStore(SHARE_STORE_NAME).clear();
+            await tx.done;
+            db.close();
+
+            return processed;
+        } catch (e) {
+            // DB might not exist or other error, which is fine
+            console.log("No shared files to process or error checking:", e);
+            return false;
+        }
     }
 };

@@ -8,6 +8,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
@@ -30,7 +33,23 @@ export default defineConfig({
             type: 'image/png',
             purpose: 'any maskable'
           }
-        ]
+        ],
+        share_target: {
+          action: '/share-target',
+          method: 'POST',
+          enctype: 'multipart/form-data',
+          params: {
+            title: 'title',
+            text: 'text',
+            url: 'url',
+            files: [
+              {
+                name: 'media',
+                accept: ['audio/*', 'video/*']
+              }
+            ]
+          }
+        }
       }
     })
   ],
