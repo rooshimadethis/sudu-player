@@ -121,7 +121,7 @@ function App() {
       <div className="p-6 max-w-xl mx-auto w-full">
         <header className="mb-8">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-600 bg-clip-text text-transparent">
-            Sudu Library
+            Sudu Player
           </h1>
           <p className="text-neutral-400 text-sm mt-1">Background-capable media queue</p>
         </header>

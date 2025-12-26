@@ -75,13 +75,9 @@ export function Playlist({ tracks, currentTrack, onPlayTrack, onUpdateLoop, onDe
                         <div className="flex items-center gap-2">
                             <div className="flex flex-col items-end mr-2">
                                 <label className="text-[10px] uppercase tracking-wider text-neutral-500 font-bold mb-0.5">Loops</label>
-                                <input
-                                    type="number"
-                                    min="1"
+                                <LoopInput
                                     value={track.loopCount || 1}
-                                    onChange={(e) => onUpdateLoop(track.id, e.target.value)}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="w-12 bg-neutral-950 border border-neutral-700 rounded-md text-center text-sm py-1 focus:ring-1 focus:ring-purple-500 outline-none text-white"
+                                    onChange={(val) => onUpdateLoop(track.id, val)}
                                 />
                             </div>
                             <button
@@ -95,5 +91,39 @@ export function Playlist({ tracks, currentTrack, onPlayTrack, onUpdateLoop, onDe
                 </Reorder.Item>
             ))}
         </Reorder.Group>
+    );
+}
+
+function LoopInput({ value: initialValue, onChange }) {
+    const [value, setValue] = React.useState(initialValue);
+
+    React.useEffect(() => {
+        setValue(initialValue);
+    }, [initialValue]);
+
+    const handleBlur = () => {
+        let newValue = value;
+        if (newValue === '' || newValue === null || isNaN(parseInt(newValue))) {
+            newValue = 1;
+        } else {
+            newValue = parseInt(newValue);
+            if (newValue < 1) newValue = 1;
+        }
+        setValue(newValue);
+        if (newValue !== initialValue) {
+            onChange(newValue);
+        }
+    };
+
+    return (
+        <input
+            type="number"
+            min="1"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onBlur={handleBlur}
+            onClick={(e) => e.stopPropagation()}
+            className="w-12 bg-neutral-950 border border-neutral-700 rounded-md text-center text-sm py-1 focus:ring-1 focus:ring-purple-500 outline-none text-white cancel-drag"
+        />
     );
 }
