@@ -1,8 +1,8 @@
 import React from 'react';
-import { Trash2, GripVertical } from 'lucide-react';
+import { Trash2, GripVertical, Play, AlertTriangle } from 'lucide-react';
 import { Reorder } from 'framer-motion';
 
-export function Playlist({ tracks, currentTrack, onPlayTrack, onUpdateLoop, onDelete, onReorder }) {
+export function Playlist({ tracks, currentTrack, onPlayTrack, onUpdateLoop, onDelete, onReorder, onRelink }) {
     if (tracks.length === 0) {
         return (
             <div className="text-center text-neutral-500 py-10 bg-neutral-800/30 rounded-2xl border-2 border-dashed border-neutral-800">
@@ -31,14 +31,44 @@ export function Playlist({ tracks, currentTrack, onPlayTrack, onUpdateLoop, onDe
                         </div>
 
                         <button
-                            onClick={() => onPlayTrack(index)}
-                            className="flex-1 text-left min-w-0"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (!track.missingFile) onPlayTrack(index);
+                            }}
+                            disabled={track.missingFile}
+                            className={`p-1.5 transition-colors rounded-full hover:bg-white/5 ${track.missingFile
+                                ? 'text-neutral-700 cursor-not-allowed'
+                                : 'text-neutral-600 hover:text-purple-400'
+                                }`}
+                            title={track.missingFile ? "File missing" : "Play"}
                         >
-                            <p className={`font-medium truncate ${currentTrack?.id === track.id ? 'text-purple-400' : 'text-white'}`}>
-                                {track.name}
-                            </p>
+                            <Play className="w-4 h-4 fill-current" />
+                        </button>
+
+                        <button
+                            onClick={() => {
+                                if (track.missingFile) {
+                                    onRelink(track.id);
+                                } else {
+                                    onPlayTrack(index);
+                                }
+                            }}
+                            className={`flex-1 text-left min-w-0 ${track.missingFile ? 'cursor-pointer hover:bg-white/5 p-1 -m-1 rounded' : ''}`}
+                        >
+                            <div className="flex items-center gap-2">
+                                {track.missingFile && (
+                                    <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                                )}
+                                <p className={`font-medium truncate ${currentTrack?.id === track.id ? 'text-purple-400' : 'text-white'}`}>
+                                    {track.name}
+                                </p>
+                            </div>
                             <p className="text-xs text-neutral-500 font-mono mt-0.5">
-                                {(track.size / 1024 / 1024).toFixed(2)} MB
+                                {track.missingFile ? (
+                                    <span className="text-amber-500/80">File missing - Tap to link</span>
+                                ) : (
+                                    `${(track.size / 1024 / 1024).toFixed(2)} MB`
+                                )}
                             </p>
                         </button>
 

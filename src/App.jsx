@@ -9,12 +9,17 @@ import { usePlayer } from './hooks/usePlayer';
 
 function App() {
   const [tracks, setTracks] = useState([]);
+  const [relinkId, setRelinkId] = useState(null);
+  const relinkInputRef = React.useRef(null);
   const player = usePlayer(tracks, setTracks);
 
   const loadTracks = async () => {
     const metadata = await StorageService.getAllMetadata();
+    // Verify files existence
+    const verified = await StorageService.verifyFilesExistence(metadata);
+
     // Sort by order ascending, then addedAt descending
-    setTracks(metadata.sort((a, b) => {
+    setTracks(verified.sort((a, b) => {
       if (typeof a.order === 'number' && typeof b.order === 'number') {
         return a.order - b.order;
       }
@@ -33,6 +38,7 @@ function App() {
   };
 
   useEffect(() => {
+    StorageService.requestPersistence();
     loadTracks();
   }, []);
 
@@ -49,8 +55,69 @@ function App() {
     loadTracks();
   };
 
+  const onRelink = (id) => {
+    setRelinkId(id);
+    relinkInputRef.current?.click();
+  };
+
+  const handleRelinkFileSelect = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !relinkId) return;
+
+    try {
+      await StorageService.relinkFile(relinkId, file);
+      loadTracks();
+      setRelinkId(null);
+    } catch (err) {
+      console.error("Relinking failed", err);
+      alert("Failed to relink file.");
+    }
+    e.target.value = null; // Reset
+  };
+
+  const handleExport = async () => {
+    const blob = await StorageService.exportMetadata();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sudu_backup_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const success = await StorageService.importMetadata(event.target.result);
+        if (success) {
+          alert('Backup imported successfully! Missing files will be marked.');
+          loadTracks();
+        } else {
+          alert('Failed to import backup.');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Invalid backup file.');
+      }
+    };
+    reader.readAsText(file);
+    // Reset input
+    e.target.value = null;
+  };
+
   return (
     <div className="flex flex-col min-h-screen pb-32 bg-neutral-900 text-white font-sans selection:bg-purple-500/30">
+      <input
+        type="file"
+        ref={relinkInputRef}
+        onChange={handleRelinkFileSelect}
+        className="hidden"
+        accept="audio/*,video/*"
+      />
       <div className="p-6 max-w-xl mx-auto w-full">
         <header className="mb-8">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-600 bg-clip-text text-transparent">
@@ -63,7 +130,7 @@ function App() {
 
         <div className="mt-8 space-y-4">
           <div className="flex items-center justify-between px-2">
-            <h2 className="text-xl font-semibold">Diffuser Queue</h2>
+            <h2 className="text-xl font-semibold">Queue</h2>
             <span className="text-xs font-mono text-neutral-500">{tracks.length} items</span>
           </div>
 
@@ -74,7 +141,19 @@ function App() {
             onUpdateLoop={handleUpdateLoop}
             onDelete={handleDelete}
             onReorder={handleReorder}
+            onRelink={onRelink}
           />
+
+          <div className="pt-8 border-t border-neutral-800 flex justify-center gap-4 text-xs text-neutral-500">
+            <button onClick={handleExport} className="hover:text-purple-400 transition-colors">
+              Export Backup (JSON)
+            </button>
+            <span>•</span>
+            <label className="hover:text-purple-400 transition-colors cursor-pointer">
+              Import Backup
+              <input type="file" onChange={handleImport} accept=".json" className="hidden" />
+            </label>
+          </div>
         </div>
       </div>
 

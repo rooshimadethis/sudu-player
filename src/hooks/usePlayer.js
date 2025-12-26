@@ -4,30 +4,30 @@ import { StorageService } from '../services/storage';
 export function usePlayer(playlist) {
     const audioRef = useRef(new Audio());
     const [isPlaying, setIsPlaying] = useState(false);
-    const [currentTrackId, setCurrentTrackId] = useState(null);
-    const [currentLoopCount, setCurrentLoopCount] = useState(0);
+    // Initialize from localStorage
+    const [currentTrackId, setCurrentTrackId] = useState(() => localStorage.getItem('sudu_last_track_id'));
+    const [currentLoopCount, setCurrentLoopCount] = useState(() => parseInt(localStorage.getItem('sudu_last_loop_count')) || 0);
     const [isLoading, setIsLoading] = useState(false);
 
     const currentTrackIndex = playlist.findIndex(t => t.id === currentTrackId);
     const currentTrack = playlist[currentTrackIndex];
 
+    // Persistence Effects
+    useEffect(() => {
+        if (currentTrackId) localStorage.setItem('sudu_last_track_id', currentTrackId);
+    }, [currentTrackId]);
+
+    useEffect(() => {
+        localStorage.setItem('sudu_last_loop_count', currentLoopCount);
+    }, [currentLoopCount]);
+
     // Functions defined with useCallback to be stable for useEffect deps
-    const playNext = useCallback(() => {
-        const nextIndex = currentTrackIndex + 1;
-        if (nextIndex < playlist.length) {
-            playTrack(nextIndex);
-        } else {
-            // End of playlist
-            setIsPlaying(false);
-            audioRef.current.pause();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentTrackIndex, playlist]); // playTrack is defined below, circular dependency if we're not careful. 
+
     // Actually, hoisting helper functions or using refs for mutable callbacks is easier.
     // However, to fix lint quickly, I'll rely on hoisting validation or just suppress exhaustive-deps for the complex interaction
     // cleaner: define loadTrackResult first.
 
-    const loadTrackResult = useCallback(async (track) => {
+    const loadTrackResult = useCallback(async (track, autoPlay = true) => {
         setIsLoading(true);
         try {
             const blob = await StorageService.getFileBlob(track.id);
@@ -40,9 +40,17 @@ export function usePlayer(playlist) {
             }
 
             audioRef.current.src = url;
-            await audioRef.current.play();
-            setIsPlaying(true);
-            setCurrentLoopCount(0);
+
+            if (autoPlay) {
+                await audioRef.current.play();
+                setIsPlaying(true);
+            } else {
+                setIsPlaying(false);
+            }
+
+            if (autoPlay) {
+                setCurrentLoopCount(0);
+            }
 
             if ('mediaSession' in navigator) {
                 navigator.mediaSession.metadata = new MediaMetadata({
@@ -53,17 +61,25 @@ export function usePlayer(playlist) {
             }
         } catch (e) {
             console.error("Error playing track:", e);
-            setIsPlaying(false);
+            if (autoPlay) setIsPlaying(false);
         } finally {
             setIsLoading(false);
         }
     }, []);
 
+    // Restoration Effect: Load the stored track source if not already loaded
+    useEffect(() => {
+        if (currentTrack && !audioRef.current.src && !isLoading) {
+            loadTrackResult(currentTrack, false);
+        }
+    }, [currentTrack, loadTrackResult, isLoading]);
+
     const playTrack = useCallback((index) => {
         if (index < 0 || index >= playlist.length) return;
         const track = playlist[index];
         setCurrentTrackId(track.id);
-        loadTrackResult(track);
+        setCurrentLoopCount(0); // Reset loop count on explicit play
+        loadTrackResult(track, true);
     }, [playlist, loadTrackResult]);
 
     // Redefine playNext to use playTrack
